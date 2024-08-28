@@ -572,7 +572,7 @@ class BleakClientWinRT(BaseBleakClient):
         """Get ATT MTU size for active connection"""
         return self._session.max_pdu_size
 
-    async def pair(self, protection_level: int = None, **kwargs) -> bool:
+    async def pair(self, protection_level: int = None, pin: str = None, **kwargs) -> bool:
         """Attempts to pair with the device.
 
         Keyword Args:
@@ -582,6 +582,9 @@ class BleakClientWinRT(BaseBleakClient):
                 2. Encryption - Pair the device using encryption.
                 3. EncryptionAndAuthentication - Pair the device using
                    encryption and authentication. (This will not work in Bleak...)
+            pin (str): The provided for Pairing:
+
+                if None the confirmation only is used.
 
         Returns:
             Boolean regarding success of pairing.
@@ -595,12 +598,18 @@ class BleakClientWinRT(BaseBleakClient):
             device_information.pairing.can_pair
             and not device_information.pairing.is_paired
         ):
-            # Currently only supporting Just Works solutions...
-            ceremony = DevicePairingKinds.CONFIRM_ONLY
-            custom_pairing = device_information.pairing.custom
+            if pin is None:
+                # Just Works solution...
+                ceremony = DevicePairingKinds.CONFIRM_ONLY
+                def handler(sender, args):
+                    args.accept()
+            else:
+                ceremony = DevicePairingKinds.PROVIDE_PIN
+                def handler(sender, args):
+                    print(f"SENDER ARGS {args}")
+                    args.accept(pin)
 
-            def handler(sender, args):
-                args.accept()
+            custom_pairing = device_information.pairing.custom
 
             pairing_requested_token = custom_pairing.add_pairing_requested(handler)
             try:
